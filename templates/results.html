@@ -17,52 +17,31 @@
 </head>
 <body>
     <h1>Scan Results</h1>
-    {% if status == 'running' %}
-        <p class="status">Scan in progress... Please wait. This page will refresh automatically.</p>
-    {% else %}
-        <p class="status">Scan completed!</p>
-    {% endif %}
-    
-    <div class="summary">
-        <h3>Summary</h3>
-        {% if summary.duration %}
-        <p>Total Duration: {{ summary.duration }} seconds</p>
-        {% endif %}
-        <p>Total Hosts Scanned: {{ summary.total_hosts_scanned }}</p>
-        <p>Vulnerability Distribution:</p>
-        <ul>
-            <li>Low: {{ summary.vuln_counts.Low }}</li>
-            <li>Medium: {{ summary.vuln_counts.Medium }}</li>
-            <li>High: {{ summary.vuln_counts.High }}</li>
-        </ul>
-    </div>
-    
-    {% if graph_data %}
-    <div>
-        <h3>Vulnerability Distribution Graph</h3>
-        <img src="data:image/png;base64,{{ graph_data }}" alt="Vulnerability Graph">
-    </div>
-    {% endif %}
-    
-    {% if results %}
-    <table>
+    <p>Status: {{ status }}</p>
+    <p>Total Hosts Scanned: {{ summary.total_hosts_scanned }}</p>
+    <p>Scan Duration: {{ summary.duration }} seconds</p>
+
+    <h2>Vulnerability Levels</h2>
+    <img src="data:image/png;base64,{{ graph_data.vulnerability_pie }}" alt="Vulnerability Levels">
+
+    <h2>Number of Ports Open vs Number of Hosts</h2>
+    <img src="data:image/png;base64,{{ graph_data.host_bar }}" alt="Number of Ports Open vs Number of Hosts">
+
+    <h2>Scan Results Table</h2>
+    <table border="1">
         <tr>
             <th>IP Address</th>
             <th>Open Ports</th>
-            <th>Vulnerability Rating</th>
+            <th>Vulnerability</th>
         </tr>
-        {% for host in results %}
+        {% for result in results %}
         <tr>
-            <td>{{ host.ip }}</td>
-            <td>{{ host.open_ports|join(', ') }}</td>
-            <td>{{ host.vulnerability }}</td>
+            <td>{{ result.ip }}</td>
+            <td>{{ result.open_ports | join(', ') }}</td>
+            <td>{{ result.vulnerability }}</td>
         </tr>
         {% endfor %}
     </table>
-    {% else %}
-        <p>No hosts found with open ports.</p>
-    {% endif %}
-    <p><a href="/">New Scan</a></p>
 </body>
 </html>
 

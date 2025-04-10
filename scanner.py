@@ -114,29 +114,70 @@ def scan_host(ip, ports, scan_id, port_executor):
 
 def generate_graph(results):
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
+    port_counts = {port: 0 for port in VULNERABILITY_SCORES.keys()}  # Initialize only specific ports
+    host_port_counts = {}
+
+    # Calculate data for graphs
     for host in results:
         rating = host.get('vulnerability')
         if rating in vuln_counts:
             vuln_counts[rating] += 1
 
-    labels = []
-    sizes = []
-    for key, value in vuln_counts.items():
-        if value > 0:
-            labels.append(key)
-            sizes.append(value)
+        for port in host.get('open_ports', []):
+            if port in port_counts:  # Only count specific ports
+                port_counts[port] += 1
 
-    if sizes:
+        num_ports = len(host.get('open_ports', []))
+        host_port_counts[num_ports] = host_port_counts.get(num_ports, 0) + 1
+
+    graphs = {}
+
+    # Pie chart for vulnerability levels
+    if any(vuln_counts.values()):
         fig, ax = plt.subplots()
+        labels = [key for key, value in vuln_counts.items() if value > 0]
+        sizes = [value for value in vuln_counts.values() if value > 0]
         ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
-        ax.axis('equal') 
+        ax.axis('equal')
         buf = BytesIO()
         plt.savefig(buf, format="png")
         plt.close(fig)
         buf.seek(0)
-        graph_base64 = base64.b64encode(buf.read()).decode('utf-8')
-        return graph_base64
-    return None
+        graphs['vulnerability_pie'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    # Bar chart for port number vs number of times open
+    if any(port_counts.values()):
+        fig, ax = plt.subplots()
+        ports = list(port_counts.keys())
+        print(ports)
+        counts = list(port_counts.values())
+        print(counts)
+        ax.bar(ports, counts, color='blue')
+        ax.set_title('Port Number vs Number of Times Open')
+        ax.set_xlabel('Port Number')
+        ax.set_ylabel('Number of Times Open')
+        buf = BytesIO()
+        plt.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        graphs['port_bar'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    # Bar chart for number of ports open vs number of hosts
+    if host_port_counts:
+        fig, ax = plt.subplots()
+        num_ports = list(host_port_counts.keys())
+        num_hosts = list(host_port_counts.values())
+        ax.bar(num_ports, num_hosts, color='orange')
+        ax.set_title('Number of Ports Open vs Number of Hosts')
+        ax.set_xlabel('Number of Ports Open')
+        ax.set_ylabel('Number of Hosts')
+        buf = BytesIO()
+        plt.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        graphs['host_bar'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    return graphs
 
 def run_scan(ip_range, ports_str, scan_id):
     try:
@@ -162,7 +203,12 @@ def run_scan(ip_range, ports_str, scan_id):
 def index():
     if request.method == 'POST':
         ip_range = request.form['ip_range']
-        ports_str = request.form['ports']
+        auto_scan = request.form.get('auto_scan')
+        if auto_scan:
+            # Use the most vulnerable ports (sorted by score descending)
+            ports_str = ','.join(map(str, sorted(VULNERABILITY_SCORES.keys(), key=lambda p: VULNERABILITY_SCORES[p], reverse=True)))
+        else:
+            ports_str = request.form['ports']
         scan_id = str(uuid.uuid4())
         scans[scan_id] = ScanResult()
         threading.Thread(target=run_scan, args=(ip_range, ports_str, scan_id)).start()
