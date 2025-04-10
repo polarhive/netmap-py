@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Scanner</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 600px; margin: 0 auto; }
+        input[type="text"] { width: 100%; padding: 8px; margin: 5px 0; }
+        input[type="submit"] { background: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Network Vulnerability Scanner</h1>
+    <form method="POST">
+        <label>IP Range:</label>
+        <input type="text" name="ip_range" placeholder="e.g., 192.168.1.0/24 or 192.168.1.1-100" required>
+        <br>
+        <label>Ports:</label>
+        <input type="text" name="ports" placeholder="e.g., 21,22,80,443,445 or 20-80" required>
+        <br>
+        <input type="submit" value="Start Scan">
+    </form>
+</body>
+</html>
