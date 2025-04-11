@@ -4,6 +4,8 @@ import time
 import uuid
 import threading
 import base64
+import json
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, render_template, redirect, url_for
 import matplotlib
@@ -15,17 +17,50 @@ app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 scans = {}
 
-VULNERABILITY_SCORES = {
-    21: 1,   # FTP
-    22: 2,   # SSH
-    23: 3,   # Telnet
-    80: 1,   # HTTP
-    443: 1,  # HTTPS
-    445: 4,  # SMB
-    3389: 3, # RDP
-    5900: 2, # VNC
-    8080: 1, # HTTP Alt
-}
+# Load configurations from JSON files
+def load_config():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'config.json')
+    mapping_path = os.path.join(script_dir, 'mapping.json')
+    
+    config = {}
+    port_mapping = {}
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        with open(mapping_path, 'r') as f:
+            port_mapping = json.load(f)
+    except FileNotFoundError as e:
+        print(f"Config file not found: {e}")
+        # Default configuration if files are not found
+        config = {
+            "scan": {
+                "timeout": 1,
+                "host_workers": 50,
+                "port_workers": 200
+            },
+            "server": {
+                "host": "0.0.0.0",
+                "port": 5000,
+                "debug": True
+            }
+        }
+        port_mapping = {
+            "21": {"score": 1, "service": "FTP", "description": "File Transfer Protocol", "common_exploits": "Anonymous login"},
+            "22": {"score": 2, "service": "SSH", "description": "Secure Shell", "common_exploits": "Brute force"},
+            "23": {"score": 3, "service": "Telnet", "description": "Telnet", "common_exploits": "Plain text authentication"}
+        }
+    
+    # Process port mapping for easier access
+    vulnerability_scores = {}
+    for port, details in port_mapping.items():
+        vulnerability_scores[int(port)] = details.get("score", 1)
+    
+    return config, port_mapping, vulnerability_scores
+
+# Load configuration
+CONFIG, PORT_MAPPING, VULNERABILITY_SCORES = load_config()
 
 class ScanResult:
     def __init__(self):
@@ -76,7 +111,10 @@ def parse_ports(ports_str):
         print(f"Error parsing ports: {e}")
     return sorted(ports)
 
-def check_port(ip, port, timeout=1):
+def check_port(ip, port, timeout=None):
+    if timeout is None:
+        timeout = CONFIG.get('scan', {}).get('timeout', 1)
+        
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
@@ -94,14 +132,29 @@ def calculate_vulnerability(open_ports):
     else:
         return 'High'
 
+def get_port_details(port):
+    port_str = str(port)
+    if port_str in PORT_MAPPING:
+        return PORT_MAPPING[port_str]
+    return {
+        "service": "Unknown",
+        "description": "Unknown service",
+        "common_exploits": "Unknown"
+    }
+
 def scan_host(ip, ports, scan_id, port_executor):
     open_ports = []
+    port_details = []
     futures = {port_executor.submit(check_port, ip, port): port for port in ports}
     for future in as_completed(futures):
         port = futures[future]
         try:
             if future.result():
                 open_ports.append(port)
+                port_details.append({
+                    "port": port,
+                    "details": get_port_details(port)
+                })
         except Exception:
             pass
     if open_ports:
@@ -109,6 +162,7 @@ def scan_host(ip, ports, scan_id, port_executor):
         scans[scan_id].results.append({
             'ip': ip,
             'open_ports': sorted(open_ports),
+            'port_details': sorted(port_details, key=lambda x: x["port"]),
             'vulnerability': vuln
         })
 
@@ -149,9 +203,7 @@ def generate_graph(results):
     if any(port_counts.values()):
         fig, ax = plt.subplots()
         ports = list(port_counts.keys())
-        print(ports)
         counts = list(port_counts.values())
-        print(counts)
         ax.bar(ports, counts, color='blue')
         ax.set_title('Port Number vs Number of Times Open')
         ax.set_xlabel('Port Number')
@@ -184,8 +236,12 @@ def run_scan(ip_range, ports_str, scan_id):
         ips = parse_ip_range(ip_range)
         ports = parse_ports(ports_str)
         total_ips = len(ips)
-        with ThreadPoolExecutor(max_workers=200) as port_executor:
-            with ThreadPoolExecutor(max_workers=50) as host_executor:
+        
+        host_workers = CONFIG.get('scan', {}).get('host_workers', 50)
+        port_workers = CONFIG.get('scan', {}).get('port_workers', 200)
+        
+        with ThreadPoolExecutor(max_workers=port_workers) as port_executor:
+            with ThreadPoolExecutor(max_workers=host_workers) as host_executor:
                 host_futures = []
                 for ip in ips:
                     host_futures.append(host_executor.submit(scan_host, ip, ports, scan_id, port_executor))
@@ -239,5 +295,10 @@ def results(scan_id):
                            graph_data=result.graph_data)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    server_config = CONFIG.get('server', {})
+    app.run(
+        host=server_config.get('host', '0.0.0.0'),
+        port=server_config.get('port', 5000),
+        debug=server_config.get('debug', True)
+    )
 

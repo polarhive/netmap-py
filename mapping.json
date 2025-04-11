@@ -1,0 +1,116 @@
+{
+    "21": {
+        "score": 1,
+        "service": "FTP",
+        "description": "File Transfer Protocol - Plain text file sharing",
+        "common_exploits": "Anonymous login, brute force"
+    },
+    "22": {
+        "score": 2,
+        "service": "SSH",
+        "description": "Secure Shell - Remote terminal access",
+        "common_exploits": "Brute force, outdated versions"
+    },
+    "23": {
+        "score": 3,
+        "service": "Telnet",
+        "description": "Plain text terminal access",
+        "common_exploits": "Plain text authentication, no encryption"
+    },
+    "25": {
+        "score": 2,
+        "service": "SMTP",
+        "description": "Simple Mail Transfer Protocol",
+        "common_exploits": "Open relay, enumeration"
+    },
+    "53": {
+        "score": 2,
+        "service": "DNS",
+        "description": "Domain Name System",
+        "common_exploits": "Cache poisoning, zone transfers"
+    },
+    "80": {
+        "score": 1,
+        "service": "HTTP",
+        "description": "Web server",
+        "common_exploits": "Injection, XSS, misconfiguration"
+    },
+    "110": {
+        "score": 1,
+        "service": "POP3",
+        "description": "Post Office Protocol",
+        "common_exploits": "Plain text authentication"
+    },
+    "139": {
+        "score": 3,
+        "service": "NetBIOS",
+        "description": "Windows file sharing legacy protocol",
+        "common_exploits": "Null sessions, information disclosure"
+    },
+    "443": {
+        "score": 1,
+        "service": "HTTPS",
+        "description": "Secure HTTP",
+        "common_exploits": "SSL/TLS vulnerabilities, misconfiguration"
+    },
+    "445": {
+        "score": 4,
+        "service": "SMB",
+        "description": "Server Message Block - Windows file sharing",
+        "common_exploits": "EternalBlue, relay attacks"
+    },
+    "1433": {
+        "score": 3,
+        "service": "MSSQL",
+        "description": "Microsoft SQL Server",
+        "common_exploits": "Weak credentials, excessive privileges"
+    },
+    "1521": {
+        "score": 3,
+        "service": "Oracle",
+        "description": "Oracle database",
+        "common_exploits": "TNS poisoning, default credentials"
+    },
+    "3306": {
+        "score": 2,
+        "service": "MySQL",
+        "description": "MySQL database",
+        "common_exploits": "Weak credentials, outdated versions"
+    },
+    "3389": {
+        "score": 3,
+        "service": "RDP",
+        "description": "Remote Desktop Protocol",
+        "common_exploits": "BlueKeep, brute force"
+    },
+    "5432": {
+        "score": 2,
+        "service": "PostgreSQL",
+        "description": "PostgreSQL database",
+        "common_exploits": "Weak credentials, excessive privileges"
+    },
+    "5900": {
+        "score": 2,
+        "service": "VNC",
+        "description": "Virtual Network Computing - Remote desktop",
+        "common_exploits": "Weak authentication, no encryption"
+    },
+    "8080": {
+        "score": 1,
+        "service": "HTTP-Alt",
+        "description": "Alternative HTTP port, often used for proxies",
+        "common_exploits": "Same as HTTP, proxy misconfiguration"
+    },
+    "8443": {
+        "score": 1,
+        "service": "HTTPS-Alt",
+        "description": "Alternative HTTPS port",
+        "common_exploits": "Same as HTTPS"
+    },
+    "27017": {
+        "score": 2,
+        "service": "MongoDB",
+        "description": "NoSQL database",
+        "common_exploits": "No authentication, exposed configuration"
+    }
+}

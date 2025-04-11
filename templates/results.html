@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scan Results</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
@@ -17,31 +19,85 @@
 </head>
 <body>
     <h1>Scan Results</h1>
-    <p>Status: {{ status }}</p>
-    <p>Total Hosts Scanned: {{ summary.total_hosts_scanned }}</p>
-    <p>Scan Duration: {{ summary.duration }} seconds</p>
-
-    <h2>Vulnerability Levels</h2>
-    <img src="data:image/png;base64,{{ graph_data.vulnerability_pie }}" alt="Vulnerability Levels">
-
-    <h2>Number of Ports Open vs Number of Hosts</h2>
-    <img src="data:image/png;base64,{{ graph_data.host_bar }}" alt="Number of Ports Open vs Number of Hosts">
-
-    <h2>Scan Results Table</h2>
-    <table border="1">
-        <tr>
-            <th>IP Address</th>
-            <th>Open Ports</th>
-            <th>Vulnerability</th>
-        </tr>
-        {% for result in results %}
-        <tr>
-            <td>{{ result.ip }}</td>
-            <td>{{ result.open_ports | join(', ') }}</td>
-            <td>{{ result.vulnerability }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <div>Status: {{ status }}</div>
+    
+    {% if status == 'completed' %}
+        <h2>Summary</h2>
+        <table>
+            <tr>
+                <th>Total Time</th>
+                <td>{{ summary.duration }} seconds</td>
+            </tr>
+            <tr>
+                <th>Total Hosts Scanned</th>
+                <td>{{ summary.total_hosts_scanned }}</td>
+            </tr>
+            <tr>
+                <th>Vulnerability Distribution</th>
+                <td>
+                    Low: {{ summary.vuln_counts.Low }}, 
+                    Medium: {{ summary.vuln_counts.Medium }}, 
+                    High: {{ summary.vuln_counts.High }}
+                </td>
+            </tr>
+        </table>
+        
+        {% if graph_data %}
+            <h2>Visualizations</h2>
+            <div class="container">
+                {% if graph_data.vulnerability_pie %}
+                    <div class="chart">
+                        <h3>Vulnerability Distribution</h3>
+                        <img src="data:image/png;base64,{{ graph_data.vulnerability_pie }}" alt="Vulnerability Distribution">
+                    </div>
+                {% endif %}
+                {% if graph_data.port_bar %}
+                    <div class="chart">
+                        <h3>Port Distribution</h3>
+                        <img src="data:image/png;base64,{{ graph_data.port_bar }}" alt="Port Distribution">
+                    </div>
+                {% endif %}
+                {% if graph_data.host_bar %}
+                    <div class="chart">
+                        <h3>Ports Per Host</h3>
+                        <img src="data:image/png;base64,{{ graph_data.host_bar }}" alt="Ports Per Host">
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <h2>Host Details ({{ results|length }})</h2>
+        <table>
+            <tr>
+                <th>IP Address</th>
+                <th>Vulnerability Level</th>
+                <th>Open Ports</th>
+                <th>Service Details</th>
+            </tr>
+            {% for host in results %}
+            <tr class="{{ host.vulnerability }}">
+                <td>{{ host.ip }}</td>
+                <td>{{ host.vulnerability }}</td>
+                <td>{{ host.open_ports|join(', ') }}</td>
+                <td>
+                    {% for port_item in host.port_details %}
+                        <div class="port-details">
+                            <div class="port-info"><strong>Port {{ port_item.port }}:</strong> {{ port_item.details.service }}</div>
+                            <div class="port-info">{{ port_item.details.description }}</div>
+                            <div class="port-info exploits">Common exploits: {{ port_item.details.common_exploits }}</div>
+                        </div>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Scan in progress... refresh page for updates.</p>
+    {% endif %}
+    
+    <div>
+        <a href="/">Back to scanner</a>
+    </div>
 </body>
 </html>
 

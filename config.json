@@ -1,0 +1,12 @@
+{
+    "scan": {
+        "timeout": 1,
+        "host_workers": 50,
+        "port_workers": 200
+    },
+    "server": {
+        "host": "0.0.0.0",
+        "port": 5000,
+        "debug": true
+    }
+}
