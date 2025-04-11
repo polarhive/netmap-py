@@ -6,12 +6,14 @@ import threading
 import base64
 import json
 import os
+import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory
 import matplotlib
 matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
 from io import BytesIO
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -38,7 +40,12 @@ def load_config():
             "scan": {
                 "timeout": 1,
                 "host_workers": 50,
-                "port_workers": 200
+                "port_workers": 200,
+                "csv_export": {
+                    "enabled": True,
+                    "path": "scan_results",
+                    "include_timestamp": True
+                }
             },
             "server": {
                 "host": "0.0.0.0",
@@ -69,7 +76,8 @@ class ScanResult:
         self.start_time = time.time()
         self.end_time = None
         self.summary = {}
-        self.graph_data = None 
+        self.graph_data = None
+        self.csv_path = None
 
 def parse_ip_range(ip_range):
     ips = []
@@ -142,6 +150,52 @@ def get_port_details(port):
         "common_exploits": "Unknown"
     }
 
+def create_csv_file(scan_id):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    csv_settings = CONFIG.get('scan', {}).get('csv_export', {})
+    csv_path = csv_settings.get('path', 'scan_results')
+    include_timestamp = csv_settings.get('include_timestamp', True)
+    
+    csv_dir = os.path.join(script_dir, csv_path)
+    
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
+    
+    if include_timestamp:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'scan_{scan_id}_{timestamp}.csv'
+    else:
+        filename = f'scan_{scan_id}.csv'
+        
+    file_path = os.path.join(csv_dir, filename)
+    
+    with open(file_path, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(['IP Address', 'Open Ports', 'Services', 'Vulnerability Level'])
+    
+    return file_path
+
+def append_to_csv(csv_path, host_result):
+    try:
+        with open(csv_path, 'a', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            
+            ip = host_result['ip']
+            open_ports = ','.join(map(str, host_result['open_ports'])) if host_result['open_ports'] else 'None'
+            
+            services = []
+            for port_detail in host_result['port_details']:
+                service = port_detail['details']['service']
+                services.append(f"{service} ({port_detail['port']})")
+            services_str = ','.join(services) if services else 'None'
+            
+            vuln_level = host_result['vulnerability']
+            
+            writer.writerow([ip, open_ports, services_str, vuln_level])
+    except Exception as e:
+        print(f"Error writing to CSV: {e}")
+
 def scan_host(ip, ports, scan_id, port_executor):
     open_ports = []
     port_details = []
@@ -159,12 +213,16 @@ def scan_host(ip, ports, scan_id, port_executor):
             pass
     if open_ports:
         vuln = calculate_vulnerability(open_ports)
-        scans[scan_id].results.append({
+        host_result = {
             'ip': ip,
             'open_ports': sorted(open_ports),
             'port_details': sorted(port_details, key=lambda x: x["port"]),
             'vulnerability': vuln
-        })
+        }
+        scans[scan_id].results.append(host_result)
+        
+        if scans[scan_id].csv_path:
+            append_to_csv(scans[scan_id].csv_path, host_result)
 
 def generate_graph(results):
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
@@ -237,6 +295,10 @@ def run_scan(ip_range, ports_str, scan_id):
         ports = parse_ports(ports_str)
         total_ips = len(ips)
         
+        csv_enabled = CONFIG.get('scan', {}).get('csv_export', {}).get('enabled', True)
+        if csv_enabled:
+            scans[scan_id].csv_path = create_csv_file(scan_id)
+        
         host_workers = CONFIG.get('scan', {}).get('host_workers', 50)
         port_workers = CONFIG.get('scan', {}).get('port_workers', 200)
         
@@ -288,11 +350,27 @@ def results(scan_id):
             vuln_counts[rating] += 1
     summary['vuln_counts'] = vuln_counts
 
+    csv_filename = os.path.basename(result.csv_path) if result.csv_path else None
+
     return render_template('results.html', 
                            status=result.status,
                            results=result.results,
                            summary=summary,
-                           graph_data=result.graph_data)
+                           graph_data=result.graph_data,
+                           csv_filename=csv_filename)
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_settings = CONFIG.get('scan', {}).get('csv_export', {})
+    csv_path = csv_settings.get('path', 'scan_results')
+    csv_dir = os.path.join(script_dir, csv_path)
+    
+    return send_from_directory(
+        directory=csv_dir,
+        path=filename,
+        as_attachment=True
+    )
 
 if __name__ == '__main__':
     server_config = CONFIG.get('server', {})

@@ -2,7 +2,12 @@
     "scan": {
         "timeout": 1,
         "host_workers": 50,
-        "port_workers": 200
+        "port_workers": 200,
+        "csv_export": {
+            "enabled": true,
+            "path": "data",
+            "include_timestamp": true
+        }
     },
     "server": {
         "host": "0.0.0.0",
