@@ -34,32 +34,8 @@ def load_config():
         with open(mapping_path, 'r') as f:
             port_mapping = json.load(f)
     except FileNotFoundError as e:
-        print(f"Config file not found: {e}")
-        # Default configuration if files are not found
-        config = {
-            "scan": {
-                "timeout": 1,
-                "host_workers": 50,
-                "port_workers": 200,
-                "csv_export": {
-                    "enabled": True,
-                    "path": "scan_results",
-                    "include_timestamp": True
-                }
-            },
-            "server": {
-                "host": "0.0.0.0",
-                "port": 5000,
-                "debug": True
-            }
-        }
-        port_mapping = {
-            "21": {"score": 1, "service": "FTP", "description": "File Transfer Protocol", "common_exploits": "Anonymous login"},
-            "22": {"score": 2, "service": "SSH", "description": "Secure Shell", "common_exploits": "Brute force"},
-            "23": {"score": 3, "service": "Telnet", "description": "Telnet", "common_exploits": "Plain text authentication"}
-        }
-    
-    # Process port mapping for easier access
+        print(f"Config file not found: {e}") 
+
     vulnerability_scores = {}
     for port, details in port_mapping.items():
         vulnerability_scores[int(port)] = details.get("score", 1)
@@ -75,9 +51,16 @@ class ScanResult:
         self.results = [] 
         self.start_time = time.time()
         self.end_time = None
-        self.summary = {}
+        self.summary = {
+            'total_hosts_scanned': 0,  # Initialize to zero
+            'vuln_counts': {'Low': 0, 'Medium': 0, 'High': 0},
+            'scanned_hosts': 0
+        }
         self.graph_data = None
         self.csv_path = None
+        self.current_host = None
+        self.current_port = None
+        self.progress = 0
 
 def parse_ip_range(ip_range):
     ips = []
@@ -199,7 +182,16 @@ def append_to_csv(csv_path, host_result):
 def scan_host(ip, ports, scan_id, port_executor):
     open_ports = []
     port_details = []
-    futures = {port_executor.submit(check_port, ip, port): port for port in ports}
+    futures = {}
+    
+    # Submit all port check tasks
+    for port in ports:
+        # Update current host/port being scanned
+        scans[scan_id].current_host = ip
+        scans[scan_id].current_port = port
+        futures[port_executor.submit(check_port, ip, port)] = port
+        
+    # Process results as they complete
     for future in as_completed(futures):
         port = futures[future]
         try:
@@ -211,6 +203,7 @@ def scan_host(ip, ports, scan_id, port_executor):
                 })
         except Exception:
             pass
+            
     if open_ports:
         vuln = calculate_vulnerability(open_ports)
         host_result = {
@@ -223,6 +216,11 @@ def scan_host(ip, ports, scan_id, port_executor):
         
         if scans[scan_id].csv_path:
             append_to_csv(scans[scan_id].csv_path, host_result)
+    
+    # Update progress percentage
+    total_ips = scans[scan_id].summary.get('total_hosts_scanned', 0)
+    if total_ips > 0:
+        scans[scan_id].progress = min(100, int(len(scans[scan_id].results) / total_ips * 100))
 
 def generate_graph(results):
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
@@ -295,6 +293,9 @@ def run_scan(ip_range, ports_str, scan_id):
         ports = parse_ports(ports_str)
         total_ips = len(ips)
         
+        # Set total hosts to scan in summary
+        scans[scan_id].summary['total_hosts_scanned'] = total_ips
+        
         csv_enabled = CONFIG.get('scan', {}).get('csv_export', {}).get('enabled', True)
         if csv_enabled:
             scans[scan_id].csv_path = create_csv_file(scan_id)
@@ -342,13 +343,22 @@ def results(scan_id):
     summary = {}
     if result.end_time:
         summary['duration'] = round(result.end_time - result.start_time, 2)
-    summary['total_hosts_scanned'] = result.summary.get('total_ips', 0)
+    
+    # Ensure total_hosts_scanned is always set
+    summary['total_hosts_scanned'] = result.summary.get('total_ips', result.summary.get('total_hosts_scanned', 0))
+    
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
     for host in result.results:
         rating = host.get('vulnerability')
         if rating in vuln_counts:
             vuln_counts[rating] += 1
     summary['vuln_counts'] = vuln_counts
+    summary['scanned_hosts'] = len(result.results)  # Add count of currently scanned hosts
+    
+    # Add current host/port information
+    summary['current_host'] = result.current_host
+    summary['current_port'] = result.current_port
+    summary['progress'] = result.progress
 
     csv_filename = os.path.basename(result.csv_path) if result.csv_path else None
 
