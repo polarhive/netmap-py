@@ -8,7 +8,7 @@ import json
 import os
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify
 import matplotlib
 matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
@@ -317,6 +317,20 @@ def run_scan(ip_range, ports_str, scan_id):
         scans[scan_id].end_time = time.time()
         scans[scan_id].graph_data = generate_graph(scans[scan_id].results)
         scans[scan_id].status = 'completed'
+
+@app.route('/get_local_ip', methods=['GET'])
+def get_local_ip():
+    hostname = socket.gethostname()
+    
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except:
+        local_ip = socket.gethostbyname(hostname)
+    
+    return jsonify({'ip': local_ip})
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

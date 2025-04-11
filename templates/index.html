@@ -172,6 +172,22 @@
             document.getElementById('auto_scan').addEventListener('change', function () {
                 document.getElementById('ports_container').style.display = this.checked ? 'none' : 'block';
             });
+            
+            // Get the local IP from the backend when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Send a request to get the local IP
+                fetch('/get_local_ip')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.ip) {
+                            // Prefill the input with the local IP in CIDR format
+                            document.getElementById('ip_range').value = data.ip + '/24';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching local IP:', error);
+                    });
+            });
         </script>
 </body>
 
