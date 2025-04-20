@@ -60,15 +60,6 @@
             </div>
             {% endif %}
 
-            {% if graph_data.port_bar %}
-            <div class="graph-card card">
-                <h5 class="card-header">Port Distribution</h5>
-                <div class="card-body">
-                    <img src="data:image/png;base64,{{ graph_data.port_bar }}" alt="Port Distribution">
-                </div>
-            </div>
-            {% endif %}
-
             {% if graph_data.host_bar %}
             <div class="graph-card card">
                 <h5 class="card-header">Ports per Host</h5>
@@ -94,6 +85,9 @@
                 <thead>
                     <tr>
                         <th>IP Address</th>
+                        {% if os_fingerprinting_enabled %}
+                        <th>Operating System</th>
+                        {% endif %}
                         <th>Open Ports</th>
                         <th>Vulnerability</th>
                         <th>Actions</th>
@@ -103,6 +97,26 @@
                     {% for host in results %}
                     <tr>
                         <td>{{ host.ip }}</td>
+                        {% if os_fingerprinting_enabled %}
+                        <td>
+                            {% if host.os_info %}
+                            <div>
+                                <strong>{{ host.os_info.name }}</strong>
+                                {% if host.os_info.accuracy != '0' %}
+                                <br>
+                                <small class="text-muted">
+                                    Accuracy: {{ host.os_info.accuracy }}%
+                                    {% if host.os_info.type %}
+                                    | Type: {{ host.os_info.type }}
+                                    {% endif %}
+                                </small>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            Unknown
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td>{{ host.open_ports|join(', ') }}</td>
                         <td><span class="vulnerability-badge {{ host.vulnerability }}">{{ host.vulnerability }}</span>
                         </td>
@@ -111,12 +125,28 @@
                                 Details</button>
                             <div id="details-{{ loop.index }}" class="port-details">
                                 {% for port_detail in host.port_details %}
-                                <div class="mb-2">
+                                <div class="mb-3">
                                     <span class="port-service">{{ port_detail.details.service }} (Port {{
                                         port_detail.port }})</span><br>
                                     <small>{{ port_detail.details.description }}</small><br>
                                     <small class="text-danger">Common exploits: {{ port_detail.details.common_exploits
                                         }}</small>
+                                    {% if port_detail.details.cves %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Common CVEs:</small>
+                                        <ul class="cve-list">
+                                            {% for cve in port_detail.details.cves %}
+                                            <li>
+                                                <a href="https://nvd.nist.gov/vuln/detail/{{ cve.id }}" target="_blank"
+                                                    class="cve-link">
+                                                    {{ cve.id }}
+                                                </a>
+                                                - {{ cve.description }}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 {% endfor %}
                             </div>

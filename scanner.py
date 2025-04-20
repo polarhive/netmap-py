@@ -14,6 +14,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from io import BytesIO
 from datetime import datetime
+import nmap
+import platform
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -126,11 +128,16 @@ def calculate_vulnerability(open_ports):
 def get_port_details(port):
     port_str = str(port)
     if port_str in PORT_MAPPING:
-        return PORT_MAPPING[port_str]
+        details = PORT_MAPPING[port_str]
+        # Ensure CVEs field exists even if not in mapping
+        if "cves" not in details:
+            details["cves"] = []
+        return details
     return {
         "service": "Unknown",
         "description": "Unknown service",
-        "common_exploits": "Unknown"
+        "common_exploits": "Unknown",
+        "cves": []  # Add empty CVE list for unknown ports
     }
 
 def create_csv_file(scan_id):
@@ -179,10 +186,45 @@ def append_to_csv(csv_path, host_result):
     except Exception as e:
         print(f"Error writing to CSV: {e}")
 
+def get_os_info(ip):
+    # Check if OS fingerprinting is enabled in config
+    os_config = CONFIG.get('scan', {}).get('os_fingerprinting', {})
+    if not os_config.get('enabled', False):
+        return None
+
+    nm = nmap.PortScanner()
+    try:
+        # Run OS detection scan
+        nm.scan(ip, arguments='-O --osscan-guess')
+        
+        if ip in nm.all_hosts():
+            os_matches = nm[ip].get('osmatch', [])
+            if os_matches:
+                # Get the best OS match
+                best_match = os_matches[0]
+                accuracy = int(best_match.get('accuracy', '0'))
+                
+                # Check if accuracy meets threshold
+                accuracy_threshold = os_config.get('accuracy_threshold', 80)
+                if accuracy >= accuracy_threshold:
+                    return {
+                        'name': best_match.get('name', 'Unknown'),
+                        'accuracy': str(accuracy),
+                        'type': best_match.get('osclass', [{}])[0].get('type', 'Unknown')
+                    }
+                
+    except Exception as e:
+        print(f"OS detection error for {ip}: {e}")
+    
+    return None
+
 def scan_host(ip, ports, scan_id, port_executor):
     open_ports = []
     port_details = []
     futures = {}
+    
+    # Add OS detection
+    os_info = get_os_info(ip)
     
     # Submit all port check tasks
     for port in ports:
@@ -210,7 +252,8 @@ def scan_host(ip, ports, scan_id, port_executor):
             'ip': ip,
             'open_ports': sorted(open_ports),
             'port_details': sorted(port_details, key=lambda x: x["port"]),
-            'vulnerability': vuln
+            'vulnerability': vuln,
+            'os_info': os_info  # Add OS info to the results
         }
         scans[scan_id].results.append(host_result)
         
@@ -224,7 +267,6 @@ def scan_host(ip, ports, scan_id, port_executor):
 
 def generate_graph(results):
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
-    port_counts = {port: 0 for port in VULNERABILITY_SCORES.keys()}  # Initialize only specific ports
     host_port_counts = {}
 
     # Calculate data for graphs
@@ -232,10 +274,6 @@ def generate_graph(results):
         rating = host.get('vulnerability')
         if rating in vuln_counts:
             vuln_counts[rating] += 1
-
-        for port in host.get('open_ports', []):
-            if port in port_counts:  # Only count specific ports
-                port_counts[port] += 1
 
         num_ports = len(host.get('open_ports', []))
         host_port_counts[num_ports] = host_port_counts.get(num_ports, 0) + 1
@@ -254,21 +292,6 @@ def generate_graph(results):
         plt.close(fig)
         buf.seek(0)
         graphs['vulnerability_pie'] = base64.b64encode(buf.read()).decode('utf-8')
-
-    # Bar chart for port number vs number of times open
-    if any(port_counts.values()):
-        fig, ax = plt.subplots()
-        ports = list(port_counts.keys())
-        counts = list(port_counts.values())
-        ax.bar(ports, counts, color='blue')
-        ax.set_title('Port Number vs Number of Times Open')
-        ax.set_xlabel('Port Number')
-        ax.set_ylabel('Number of Times Open')
-        buf = BytesIO()
-        plt.savefig(buf, format="png")
-        plt.close(fig)
-        buf.seek(0)
-        graphs['port_bar'] = base64.b64encode(buf.read()).decode('utf-8')
 
     # Bar chart for number of ports open vs number of hosts
     if host_port_counts:
@@ -375,13 +398,17 @@ def results(scan_id):
     summary['progress'] = result.progress
 
     csv_filename = os.path.basename(result.csv_path) if result.csv_path else None
+    
+    # Add OS fingerprinting config to template context
+    os_fingerprinting_enabled = CONFIG.get('scan', {}).get('os_fingerprinting', {}).get('enabled', False)
 
     return render_template('results.html', 
                            status=result.status,
                            results=result.results,
                            summary=summary,
                            graph_data=result.graph_data,
-                           csv_filename=csv_filename)
+                           csv_filename=csv_filename,
+                           os_fingerprinting_enabled=os_fingerprinting_enabled)  # Add this line
 
 @app.route('/download/<filename>')
 def download_file(filename):

@@ -3,6 +3,10 @@
         "timeout": 1,
         "host_workers": 50,
         "port_workers": 200,
+        "os_fingerprinting": {
+            "enabled": false,
+            "accuracy_threshold": 80
+        },
         "csv_export": {
             "enabled": true,
             "path": "data",
@@ -11,7 +15,7 @@
     },
     "server": {
         "host": "0.0.0.0",
-        "port": 5000,
+        "port": 5001,
         "debug": true
     }
 }

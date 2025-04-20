@@ -1,4 +1,4 @@
-        body {
+body {
             background-color: #f8f9fa;
             font-family: 'Mona Sans', sans-serif;
         }
@@ -151,4 +151,40 @@
 
         .port-service {
             font-weight: 500;
+        }
+
+        .cve-list {
+            list-style: none;
+            padding-left: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .cve-list li {
+            margin-bottom: 0.3rem;
+        }
+
+        .cve-link {
+            color: #dc3545;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .cve-link:hover {
+            text-decoration: underline;
+        }
+
+        .os-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .os-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .os-details {
+            font-size: 0.8em;
+            color: #666;
         }

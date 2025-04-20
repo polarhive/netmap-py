@@ -1,39 +1,99 @@
 {
     "21": {
-        "score": 1,
         "service": "FTP",
-        "description": "File Transfer Protocol - Plain text file sharing",
-        "common_exploits": "Anonymous login, brute force"
+        "description": "File Transfer Protocol Service",
+        "common_exploits": "Anonymous access, Brute force, Directory traversal",
+        "score": 7,
+        "cves": [
+            {
+                "id": "CVE-2023-51467",
+                "description": "vsftpd overflow vulnerability allows remote code execution"
+            },
+            {
+                "id": "CVE-2022-24286",
+                "description": "ProFTPD buffer overflow vulnerability"
+            }
+        ]
     },
     "22": {
-        "score": 2,
         "service": "SSH",
-        "description": "Secure Shell - Remote terminal access",
-        "common_exploits": "Brute force, outdated versions"
+        "description": "Secure Shell Service",
+        "common_exploits": "Brute force, User enumeration",
+        "score": 5,
+        "cves": [
+            {
+                "id": "CVE-2023-48795",
+                "description": "OpenSSH Terrapin Attack vulnerability"
+            },
+            {
+                "id": "CVE-2023-25136",
+                "description": "OpenSSH authentication bypass vulnerability"
+            }
+        ]
     },
     "23": {
-        "score": 3,
         "service": "Telnet",
-        "description": "Plain text terminal access",
-        "common_exploits": "Plain text authentication, no encryption"
+        "description": "Telnet Remote Access",
+        "common_exploits": "Clear text transmission, Brute force",
+        "score": 9,
+        "cves": [
+            {
+                "id": "CVE-2023-39476",
+                "description": "Remote code execution in telnetd"
+            },
+            {
+                "id": "CVE-2022-39247",
+                "description": "Buffer overflow in telnet service"
+            }
+        ]
     },
     "25": {
-        "score": 2,
         "service": "SMTP",
         "description": "Simple Mail Transfer Protocol",
-        "common_exploits": "Open relay, enumeration"
+        "common_exploits": "Open relay, User enumeration",
+        "score": 6,
+        "cves": [
+            {
+                "id": "CVE-2023-49285",
+                "description": "Postfix SMTP server vulnerability"
+            },
+            {
+                "id": "CVE-2023-7102",
+                "description": "Exim SMTP buffer overflow"
+            }
+        ]
     },
     "53": {
-        "score": 2,
         "service": "DNS",
         "description": "Domain Name System",
-        "common_exploits": "Cache poisoning, zone transfers"
+        "common_exploits": "Cache poisoning, Zone transfer",
+        "score": 7,
+        "cves": [
+            {
+                "id": "CVE-2023-50868",
+                "description": "BIND9 denial of service vulnerability"
+            },
+            {
+                "id": "CVE-2023-3341",
+                "description": "DNS cache poisoning in multiple implementations"
+            }
+        ]
     },
     "80": {
-        "score": 1,
         "service": "HTTP",
-        "description": "Web server",
-        "common_exploits": "Injection, XSS, misconfiguration"
+        "description": "Web Server",
+        "common_exploits": "SQL injection, XSS, Directory traversal",
+        "score": 8,
+        "cves": [
+            {
+                "id": "CVE-2023-50164",
+                "description": "Apache HTTP Server vulnerability"
+            },
+            {
+                "id": "CVE-2023-44487",
+                "description": "HTTP/2 Rapid Reset DDoS vulnerability"
+            }
+        ]
     },
     "110": {
         "score": 1,
@@ -48,16 +108,36 @@
         "common_exploits": "Null sessions, information disclosure"
     },
     "443": {
-        "score": 1,
         "service": "HTTPS",
-        "description": "Secure HTTP",
-        "common_exploits": "SSL/TLS vulnerabilities, misconfiguration"
+        "description": "Secure Web Server",
+        "common_exploits": "SSL/TLS vulnerabilities, Certificate issues",
+        "score": 6,
+        "cves": [
+            {
+                "id": "CVE-2023-49073",
+                "description": "OpenSSL vulnerability in TLS handling"
+            },
+            {
+                "id": "CVE-2023-5363",
+                "description": "TLS certificate validation bypass"
+            }
+        ]
     },
     "445": {
-        "score": 4,
         "service": "SMB",
-        "description": "Server Message Block - Windows file sharing",
-        "common_exploits": "EternalBlue, relay attacks"
+        "description": "Server Message Block",
+        "common_exploits": "EternalBlue, Remote code execution",
+        "score": 9,
+        "cves": [
+            {
+                "id": "CVE-2023-37618",
+                "description": "Samba remote code execution vulnerability"
+            },
+            {
+                "id": "CVE-2022-45141",
+                "description": "SMB protocol authentication bypass"
+            }
+        ]
     },
     "1433": {
         "score": 3,
@@ -72,22 +152,52 @@
         "common_exploits": "TNS poisoning, default credentials"
     },
     "3306": {
-        "score": 2,
         "service": "MySQL",
-        "description": "MySQL database",
-        "common_exploits": "Weak credentials, outdated versions"
+        "description": "MySQL Database Server",
+        "common_exploits": "Brute force, Buffer overflow",
+        "score": 7,
+        "cves": [
+            {
+                "id": "CVE-2023-22103",
+                "description": "MySQL authentication bypass vulnerability"
+            },
+            {
+                "id": "CVE-2023-22057",
+                "description": "MySQL remote code execution"
+            }
+        ]
     },
     "3389": {
-        "score": 3,
         "service": "RDP",
         "description": "Remote Desktop Protocol",
-        "common_exploits": "BlueKeep, brute force"
+        "common_exploits": "BlueKeep, Authentication bypass",
+        "score": 8,
+        "cves": [
+            {
+                "id": "CVE-2023-36563",
+                "description": "Windows RDP remote code execution"
+            },
+            {
+                "id": "CVE-2023-21823",
+                "description": "RDP protocol elevation of privilege"
+            }
+        ]
     },
     "5432": {
-        "score": 2,
         "service": "PostgreSQL",
-        "description": "PostgreSQL database",
-        "common_exploits": "Weak credentials, excessive privileges"
+        "description": "PostgreSQL Database Server",
+        "common_exploits": "Authentication bypass, SQL injection",
+        "score": 6,
+        "cves": [
+            {
+                "id": "CVE-2023-39418",
+                "description": "PostgreSQL privilege escalation"
+            },
+            {
+                "id": "CVE-2023-5868",
+                "description": "PostgreSQL authentication bypass"
+            }
+        ]
     },
     "5900": {
         "score": 2,
@@ -96,10 +206,20 @@
         "common_exploits": "Weak authentication, no encryption"
     },
     "8080": {
-        "score": 1,
-        "service": "HTTP-Alt",
-        "description": "Alternative HTTP port, often used for proxies",
-        "common_exploits": "Same as HTTP, proxy misconfiguration"
+        "service": "HTTP-ALT",
+        "description": "Alternative HTTP Port",
+        "common_exploits": "SQL injection, XSS, Directory traversal",
+        "score": 7,
+        "cves": [
+            {
+                "id": "CVE-2023-41892",
+                "description": "Tomcat remote code execution"
+            },
+            {
+                "id": "CVE-2023-41900",
+                "description": "Jenkins security bypass vulnerability"
+            }
+        ]
     },
     "8443": {
         "score": 1,
