@@ -127,6 +127,13 @@ body {
         .back-btn {
             margin-bottom: 20px;
             display: inline-block;
+            color: #1a73e8;
+            text-decoration: none;
+            padding-bottom: 1rem;
+        }
+
+        .back-btn:hover {
+            color: #0d62c9;
         }
 
         .download-btn {
@@ -187,4 +194,114 @@ body {
         .os-details {
             font-size: 0.8em;
             color: #666;
+        }
+
+        /* Settings page specific styles */
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .settings-section {
+            background: white;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .settings-section h3 {
+            color: #1a73e8;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .setting-group {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            display: block;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 0.75rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+        }
+
+        .form-check {
+            text-align: center;
+            padding-left: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .form-check-input {
+            width: 1.2em;
+            height: 1.2em;
+            margin: 0;
+            float: none;
+            border: 2px solid #1a73e8;
+            border-radius: 0.25em;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .form-check-label {
+            color: #2c3e50;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dependent-settings {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            opacity: 0;
+        }
+
+        .dependent-settings.show {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 1rem;
+        }
+
+        /* Save button style */
+        .save-btn {
+            background-color: #1a73e8;
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .save-btn:hover {
+            background-color: #0d62c9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
         }
