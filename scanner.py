@@ -16,6 +16,7 @@ from io import BytesIO
 from datetime import datetime
 import nmap
 import platform
+from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -266,6 +267,10 @@ def scan_host(ip, ports, scan_id, port_executor):
         scans[scan_id].progress = min(100, int(len(scans[scan_id].results) / total_ips * 100))
 
 def generate_graph(results):
+    # Skip graph generation if only one host was scanned
+    if len(results) <= 1:
+        return {}
+
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
     host_port_counts = {}
 
@@ -422,6 +427,46 @@ def download_file(filename):
         path=filename,
         as_attachment=True
     )
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        try:
+            new_config = {
+                "scan": {
+                    "timeout": float(request.form.get('timeout', 1)),
+                    "host_workers": int(request.form.get('host_workers', 50)),
+                    "port_workers": int(request.form.get('port_workers', 200)),
+                    "os_fingerprinting": {
+                        "enabled": request.form.get('os_fingerprinting') == 'true',
+                        "accuracy_threshold": int(request.form.get('accuracy_threshold', 80))
+                    },
+                    "csv_export": {
+                        "enabled": request.form.get('csv_export') == 'true',
+                        "path": request.form.get('csv_path', 'data'),
+                        "include_timestamp": request.form.get('include_timestamp') == 'true'
+                    }
+                },
+                "server": {
+                    "host": request.form.get('host', '0.0.0.0'),
+                    "port": int(request.form.get('port', 5001)),
+                    "debug": request.form.get('debug') == 'true'
+                }
+            }
+            
+            config_path = Path(__file__).parent / 'config.json'
+            with open(config_path, 'w') as f:
+                json.dump(new_config, f, indent=4)
+            
+            # Reload configuration
+            global CONFIG, PORT_MAPPING, VULNERABILITY_SCORES
+            CONFIG, PORT_MAPPING, VULNERABILITY_SCORES = load_config()
+            
+            return jsonify({"status": "success", "message": "Settings updated successfully"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+            
+    return render_template('settings.html', config=CONFIG)
 
 if __name__ == '__main__':
     server_config = CONFIG.get('server', {})

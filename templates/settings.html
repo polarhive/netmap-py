@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Scanner Settings</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Mona Sans', sans-serif;
+            padding: 2rem 0;
+        }
+
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .settings-section {
+            background: white;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .settings-section h3 {
+            color: #1a73e8;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            display: block;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 0.75rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+        }
+
+        .form-check {
+            text-align: center;
+            padding-left: 0;
+            margin-bottom: 1rem;
+        }
+
+        .form-check-input {
+            width: 1.2em;
+            height: 1.2em;
+            margin-top: 0.25em;
+            float: none;
+            margin-left: 0;
+            margin-right: 0.5rem;
+            border: 2px solid #1a73e8;
+            border-radius: 0.25em;
+            cursor: pointer;
+        }
+
+        .form-check-input:checked {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+
+        .form-check-label {
+            color: #2c3e50;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .setting-group {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .dependent-settings {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            opacity: 0;
+        }
+
+        .dependent-settings.show {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <a href="/" class="back-btn" style="padding-bottom: 1rem;">
+            <i class="bi bi-arrow-left"></i> Back to Scanner
+        </a>
+        
+        
+        <form id="settingsForm">
+            <div class="settings-section">
+                <h3><i class="bi bi-speedometer2"></i> Scan Performance</h3>
+                <div class="setting-group">
+                    <div class="mb-3">
+                        <label class="form-label">Connection Timeout (seconds)</label>
+                        <input type="number" class="form-control mx-auto" style="max-width: 200px;" name="timeout" value="{{ config.scan.timeout }}" step="0.1" min="0.1">
+                    </div>
+                    <div class="row justify-content-center">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Host Workers</label>
+                            <input type="number" class="form-control" name="host_workers" value="{{ config.scan.host_workers }}" min="1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Port Workers</label>
+                            <input type="number" class="form-control" name="port_workers" value="{{ config.scan.port_workers }}" min="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3><i class="bi bi-search"></i> OS Fingerprinting</h3>
+                <div class="setting-group">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="os_fingerprinting" name="os_fingerprinting" value="true" 
+                               {% if config.scan.os_fingerprinting.enabled %}checked{% endif %}>
+                        <label class="form-check-label">Enable OS Detection</label>
+                    </div>
+                    <div class="dependent-settings" id="os_settings">
+                        <div class="mb-3">
+                            <label class="form-label">Accuracy Threshold (%)</label>
+                            <input type="number" class="form-control mx-auto" style="max-width: 200px;" name="accuracy_threshold" 
+                                   value="{{ config.scan.os_fingerprinting.accuracy_threshold }}" min="0" max="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3><i class="bi bi-file-earmark-text"></i> Export Settings</h3>
+                <div class="setting-group">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="csv_export" name="csv_export" value="true" 
+                               {% if config.scan.csv_export.enabled %}checked{% endif %}>
+                        <label class="form-check-label">Enable CSV Export</label>
+                    </div>
+                    <div class="dependent-settings" id="csv_settings">
+                        <div class="mb-3">
+                            <label class="form-label">Export Directory</label>
+                            <input type="text" class="form-control mx-auto" style="max-width: 300px;" name="csv_path" value="{{ config.scan.csv_export.path }}">
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="include_timestamp" value="true" 
+                                   {% if config.scan.csv_export.include_timestamp %}checked{% endif %}>
+                            <label class="form-check-label">Include Timestamp in Filenames</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary save-btn">
+                    <i class="bi bi-save"></i> Save Settings
+                </button>
+            </div>
+        </form>
+
+        <!-- Toast notification -->
+        <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    Settings saved successfully!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const toast = new bootstrap.Toast(document.querySelector('.toast'));
+        
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            fetch('/settings', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.querySelector('.toast').classList.remove('bg-danger');
+                    document.querySelector('.toast').classList.add('bg-success');
+                    document.querySelector('.toast-body').textContent = 'Settings saved successfully!';
+                } else {
+                    document.querySelector('.toast').classList.remove('bg-success');
+                    document.querySelector('.toast').classList.add('bg-danger');
+                    document.querySelector('.toast-body').textContent = 'Error: ' + data.message;
+                }
+                toast.show();
+            })
+            .catch(error => {
+                document.querySelector('.toast').classList.remove('bg-success');
+                document.querySelector('.toast').classList.add('bg-danger');
+                document.querySelector('.toast-body').textContent = 'Error saving settings: ' + error;
+                toast.show();
+            });
+        });
+
+        // Function to toggle dependent settings
+        function toggleDependentSettings(checkboxId, settingsId) {
+            const checkbox = document.getElementById(checkboxId);
+            const settings = document.getElementById(settingsId);
+            
+            function updateVisibility() {
+                if (checkbox.checked) {
+                    settings.classList.add('show');
+                } else {
+                    settings.classList.remove('show');
+                }
+            }
+            
+            checkbox.addEventListener('change', updateVisibility);
+            updateVisibility(); // Initial state
+        }
+
+        // Initialize toggles
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleDependentSettings('os_fingerprinting', 'os_settings');
+            toggleDependentSettings('csv_export', 'csv_settings');
+        });
+    </script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 {
     "scan": {
-        "timeout": 1,
+        "timeout": 1.0,
         "host_workers": 50,
         "port_workers": 200,
         "os_fingerprinting": {
-            "enabled": false,
+            "enabled": true,
             "accuracy_threshold": 80
         },
         "csv_export": {
