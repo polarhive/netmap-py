@@ -7,6 +7,7 @@ import base64
 import json
 import os
 import csv
+import numpy as np  
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify
 import matplotlib
@@ -17,12 +18,12 @@ from datetime import datetime
 import nmap
 import platform
 from pathlib import Path
+import seaborn
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 scans = {}
 
-# Load configurations from JSON files
 def load_config():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, 'config.json')
@@ -45,7 +46,6 @@ def load_config():
     
     return config, port_mapping, vulnerability_scores
 
-# Load configuration
 CONFIG, PORT_MAPPING, VULNERABILITY_SCORES = load_config()
 
 class ScanResult:
@@ -55,7 +55,7 @@ class ScanResult:
         self.start_time = time.time()
         self.end_time = None
         self.summary = {
-            'total_hosts_scanned': 0,  # Initialize to zero
+            'total_hosts_scanned': 0, 
             'vuln_counts': {'Low': 0, 'Medium': 0, 'High': 0},
             'scanned_hosts': 0
         }
@@ -130,7 +130,6 @@ def get_port_details(port):
     port_str = str(port)
     if port_str in PORT_MAPPING:
         details = PORT_MAPPING[port_str]
-        # Ensure CVEs field exists even if not in mapping
         if "cves" not in details:
             details["cves"] = []
         return details
@@ -138,7 +137,7 @@ def get_port_details(port):
         "service": "Unknown",
         "description": "Unknown service",
         "common_exploits": "Unknown",
-        "cves": []  # Add empty CVE list for unknown ports
+        "cves": []  
     }
 
 def create_csv_file(scan_id):
@@ -187,25 +186,22 @@ def append_to_csv(csv_path, host_result):
     except Exception as e:
         print(f"Error writing to CSV: {e}")
 
+# experimental
 def get_os_info(ip):
-    # Check if OS fingerprinting is enabled in config
     os_config = CONFIG.get('scan', {}).get('os_fingerprinting', {})
     if not os_config.get('enabled', False):
         return None
 
     nm = nmap.PortScanner()
     try:
-        # Run OS detection scan
         nm.scan(ip, arguments='-O --osscan-guess')
         
         if ip in nm.all_hosts():
             os_matches = nm[ip].get('osmatch', [])
             if os_matches:
-                # Get the best OS match
                 best_match = os_matches[0]
                 accuracy = int(best_match.get('accuracy', '0'))
                 
-                # Check if accuracy meets threshold
                 accuracy_threshold = os_config.get('accuracy_threshold', 80)
                 if accuracy >= accuracy_threshold:
                     return {
@@ -224,12 +220,9 @@ def scan_host(ip, ports, scan_id, port_executor):
     port_details = []
     futures = {}
     
-    # Add OS detection
     os_info = get_os_info(ip)
     
-    # Submit all port check tasks
     for port in ports:
-        # Update current host/port being scanned
         scans[scan_id].current_host = ip
         scans[scan_id].current_port = port
         futures[port_executor.submit(check_port, ip, port)] = port
@@ -267,15 +260,45 @@ def scan_host(ip, ports, scan_id, port_executor):
         scans[scan_id].progress = min(100, int(len(scans[scan_id].results) / total_ips * 100))
 
 def generate_graph(results):
-    # Skip graph generation if only one host was scanned
+    graphs = {}
     if len(results) <= 1:
-        return {}
+        return graphs
+
+    # Set consistent style for all plots
+    plt.style.use('bmh')  # Use built-in style instead of seaborn
+    colors = {'primary': '#3498db', 'secondary': '#2ecc71', 'warning': '#f1c40f', 'danger': '#e74c3c'}
+
+    def setup_figure(fig, ax):
+        fig.set_facecolor('#ffffff')
+        ax.set_facecolor('#ffffff')
+        ax.grid(True, linestyle='--', alpha=0.3)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(labelsize=9)
+        ax.title.set_size(11)
 
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
     host_port_counts = {}
-
-    # Calculate data for graphs
+    
+    # Create data for heatmap
+    host_port_matrix = []
+    ip_addresses = []
+    all_ports = set()
+    
+    # Collect data for heatmap
     for host in results:
+        ip_addresses.append(host['ip'])
+        for port in host.get('open_ports', []):
+            all_ports.add(port)
+    
+    # Sort ports for consistent display
+    all_ports = sorted(list(all_ports))
+    
+    # Create matrix for heatmap
+    for host in results:
+        row = [1 if port in host.get('open_ports', []) else 0 for port in all_ports]
+        host_port_matrix.append(row)
+        
         rating = host.get('vulnerability')
         if rating in vuln_counts:
             vuln_counts[rating] += 1
@@ -283,27 +306,60 @@ def generate_graph(results):
         num_ports = len(host.get('open_ports', []))
         host_port_counts[num_ports] = host_port_counts.get(num_ports, 0) + 1
 
-    graphs = {}
+    # Generate heatmap if we have data
+    if host_port_matrix and all_ports:
+        fig, ax = plt.subplots(figsize=(12, max(8, len(ip_addresses) * 0.3)))
+        setup_figure(fig, ax)
+        im = ax.imshow(host_port_matrix, aspect='auto', cmap='YlOrRd')
+        
+        # Customize the plot
+        ax.set_xticks(range(len(all_ports)))
+        ax.set_xticklabels(all_ports, rotation=45, ha='right')
+        ax.set_yticks(range(len(ip_addresses)))
+        ax.set_yticklabels(ip_addresses)
+        
+        ax.set_title('Port Distribution Across Hosts')
+        ax.set_xlabel('Ports')
+        ax.set_ylabel('IP Addresses')
+        
+        # Add colorbar
+        plt.colorbar(im, ax=ax, label='Port Status (Open/Closed)')
+        
+        # Adjust layout to prevent label cutoff
+        plt.tight_layout()
+        
+        # Save heatmap
+        buf = BytesIO()
+        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        graphs['port_heatmap'] = base64.b64encode(buf.read()).decode('utf-8')
 
-    # Pie chart for vulnerability levels
+    # Existing pie chart code
     if any(vuln_counts.values()):
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 8))
+        setup_figure(fig, ax)
         labels = [key for key, value in vuln_counts.items() if value > 0]
         sizes = [value for value in vuln_counts.values() if value > 0]
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+        wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', 
+                                         colors=[colors['primary'], colors['warning'], colors['danger']],
+                                         startangle=140)
         ax.axis('equal')
+        plt.setp(autotexts, size=9, weight="bold")
+        plt.setp(texts, size=10)
         buf = BytesIO()
         plt.savefig(buf, format="png")
         plt.close(fig)
         buf.seek(0)
         graphs['vulnerability_pie'] = base64.b64encode(buf.read()).decode('utf-8')
 
-    # Bar chart for number of ports open vs number of hosts
+    # Existing bar chart code
     if host_port_counts:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 6))
+        setup_figure(fig, ax)
         num_ports = list(host_port_counts.keys())
         num_hosts = list(host_port_counts.values())
-        ax.bar(num_ports, num_hosts, color='orange')
+        ax.bar(num_ports, num_hosts, color=colors['primary'])
         ax.set_title('Number of Ports Open vs Number of Hosts')
         ax.set_xlabel('Number of Ports Open')
         ax.set_ylabel('Number of Hosts')
@@ -312,6 +368,139 @@ def generate_graph(results):
         plt.close(fig)
         buf.seek(0)
         graphs['host_bar'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    # Add service distribution chart
+    if results:
+        service_counts = {}
+        for host in results:
+            for port_detail in host.get('port_details', []):
+                service = port_detail['details']['service']
+                if service != 'Unknown':
+                    service_counts[service] = service_counts.get(service, 0) + 1
+        
+        if service_counts:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            setup_figure(fig, ax)
+            services = list(service_counts.keys())
+            counts = list(service_counts.values())
+            
+            # Sort by count descending
+            sorted_indices = sorted(range(len(counts)), key=lambda k: counts[k], reverse=True)
+            services = [services[i] for i in sorted_indices]
+            counts = [counts[i] for i in sorted_indices]
+            
+            ax.barh(services, counts, color=colors['secondary'])
+            ax.set_title('Service Distribution')
+            ax.set_xlabel('Number of Hosts')
+            plt.tight_layout()
+            
+            buf = BytesIO()
+            plt.savefig(buf, format="png")
+            plt.close(fig)
+            buf.seek(0)
+            graphs['service_distribution'] = base64.b64encode(buf.read()).decode('utf-8')
+
+        # Add vulnerability score distribution
+        port_scores = []
+        for host in results:
+            for port in host.get('open_ports', []):
+                port_scores.append(VULNERABILITY_SCORES.get(port, 0))
+                
+        if port_scores:
+            fig, ax = plt.subplots(figsize=(8, 5))
+            setup_figure(fig, ax)
+            ax.hist(port_scores, bins=10, color=colors['danger'], alpha=0.7)
+            ax.set_title('Vulnerability Score Distribution')
+            ax.set_xlabel('Vulnerability Score')
+            ax.set_ylabel('Frequency')
+            plt.tight_layout()
+            
+            buf = BytesIO()
+            plt.savefig(buf, format="png")
+            plt.close(fig)
+            buf.seek(0)
+            graphs['vuln_score_dist'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    # Add port vulnerability heatmap
+    if host_port_matrix and all_ports:
+        fig, ax = plt.subplots(figsize=(12, max(8, len(ip_addresses) * 0.3)))
+        setup_figure(fig, ax)
+        
+        # Create vulnerability score matrix
+        vuln_matrix = []
+        for host in results:
+            row = [VULNERABILITY_SCORES.get(port, 0) if port in host.get('open_ports', []) else 0 for port in all_ports]
+            vuln_matrix.append(row)
+        
+        im = ax.imshow(vuln_matrix, aspect='auto', cmap='RdYlGn_r')  # Red for high vulnerability
+        
+        ax.set_xticks(range(len(all_ports)))
+        ax.set_xticklabels(all_ports, rotation=45, ha='right')
+        ax.set_yticks(range(len(ip_addresses)))
+        ax.set_yticklabels(ip_addresses)
+        
+        ax.set_title('Port Vulnerability Heatmap')
+        ax.set_xlabel('Ports')
+        ax.set_ylabel('IP Addresses')
+        
+        plt.colorbar(im, ax=ax, label='Vulnerability Score')
+        plt.tight_layout()
+        
+        buf = BytesIO()
+        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        graphs['port_vuln_heatmap'] = base64.b64encode(buf.read()).decode('utf-8')
+
+    # Add vulnerability distribution heatmap
+    if results and all_ports:
+        # Get unique ports and vulnerability levels
+        sorted_ports = sorted(all_ports)
+        vulnerabilities = ['Low', 'Medium', 'High']
+        
+        # Create data matrix
+        data = np.zeros((len(vulnerabilities), len(sorted_ports)))
+        
+        # Fill data matrix with actual counts of vulnerabilities per port
+        for host in results:
+            vuln_level = host.get('vulnerability')
+            if vuln_level in vulnerabilities:
+                vuln_idx = vulnerabilities.index(vuln_level)
+                for port in host.get('open_ports', []):
+                    if port in sorted_ports:
+                        port_idx = sorted_ports.index(port)
+                        data[vuln_idx][port_idx] += 1
+        
+        # Create the heatmap
+        fig, ax = plt.subplots(figsize=(12, 6))
+        setup_figure(fig, ax)
+        im = ax.imshow(data, cmap='YlOrRd', aspect='auto')
+        
+        # Set labels
+        ax.set_xticks(range(len(sorted_ports)))
+        ax.set_yticks(range(len(vulnerabilities)))
+        ax.set_xticklabels([f"Port {p}" for p in sorted_ports], rotation=45, ha='right')
+        ax.set_yticklabels(vulnerabilities)
+        
+        # Add text annotations with white or black text depending on background
+        for i in range(len(vulnerabilities)):
+            for j in range(len(sorted_ports)):
+                value = data[i][j]
+                color = 'white' if value/data.max() > 0.5 else 'black'
+                ax.text(j, i, int(value), ha='center', va='center', color=color)
+        
+        # Add colorbar and title
+        plt.colorbar(im, label='Number of hosts')
+        ax.set_title('Vulnerability Distribution by Port')
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        
+        buf = BytesIO()
+        plt.savefig(buf, format="png", dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        graphs['vuln_dist_heatmap'] = base64.b64encode(buf.read()).decode('utf-8')
 
     return graphs
 
@@ -386,7 +575,6 @@ def results(scan_id):
     if result.end_time:
         summary['duration'] = round(result.end_time - result.start_time, 2)
     
-    # Ensure total_hosts_scanned is always set
     summary['total_hosts_scanned'] = result.summary.get('total_ips', result.summary.get('total_hosts_scanned', 0))
     
     vuln_counts = {'Low': 0, 'Medium': 0, 'High': 0}
@@ -395,16 +583,14 @@ def results(scan_id):
         if rating in vuln_counts:
             vuln_counts[rating] += 1
     summary['vuln_counts'] = vuln_counts
-    summary['scanned_hosts'] = len(result.results)  # Add count of currently scanned hosts
+    summary['scanned_hosts'] = len(result.results) 
     
-    # Add current host/port information
     summary['current_host'] = result.current_host
     summary['current_port'] = result.current_port
     summary['progress'] = result.progress
 
     csv_filename = os.path.basename(result.csv_path) if result.csv_path else None
     
-    # Add OS fingerprinting config to template context
     os_fingerprinting_enabled = CONFIG.get('scan', {}).get('os_fingerprinting', {}).get('enabled', False)
 
     return render_template('results.html', 
@@ -413,7 +599,7 @@ def results(scan_id):
                            summary=summary,
                            graph_data=result.graph_data,
                            csv_filename=csv_filename,
-                           os_fingerprinting_enabled=os_fingerprinting_enabled)  # Add this line
+                           os_fingerprinting_enabled=os_fingerprinting_enabled) 
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -458,7 +644,6 @@ def settings():
             with open(config_path, 'w') as f:
                 json.dump(new_config, f, indent=4)
             
-            # Reload configuration
             global CONFIG, PORT_MAPPING, VULNERABILITY_SCORES
             CONFIG, PORT_MAPPING, VULNERABILITY_SCORES = load_config()
             
@@ -471,6 +656,7 @@ def settings():
 if __name__ == '__main__':
     server_config = CONFIG.get('server', {})
     app.run(
+        ssl_context=('certs/cert.pem', 'certs/key.pem'), 
         host=server_config.get('host', '0.0.0.0'),
         port=server_config.get('port', 5000),
         debug=server_config.get('debug', True)

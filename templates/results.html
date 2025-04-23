@@ -51,20 +51,67 @@
         <h2 class="mb-3 text-center">Scan Visualization</h2>
         <div class="graph-container">
             {% if graph_data.vulnerability_pie %}
-            <div class="graph-card card">
+            <div class="graph-card">
                 <h5 class="card-header">Vulnerability Distribution</h5>
                 <div class="card-body">
-                    <img src="data:image/png;base64,{{ graph_data.vulnerability_pie }}"
-                        alt="Vulnerability Distribution">
+                    <img src="data:image/png;base64,{{ graph_data.vulnerability_pie }}" 
+                         alt="Vulnerability Distribution"
+                         loading="lazy">
                 </div>
             </div>
             {% endif %}
 
             {% if graph_data.host_bar %}
-            <div class="graph-card card">
+            <div class="graph-card">
                 <h5 class="card-header">Ports per Host</h5>
                 <div class="card-body">
-                    <img src="data:image/png;base64,{{ graph_data.host_bar }}" alt="Ports per Host">
+                    <img src="data:image/png;base64,{{ graph_data.host_bar }}" 
+                         alt="Ports per Host"
+                         loading="lazy">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if graph_data.service_distribution %}
+            <div class="graph-card">
+                <h5 class="card-header">Service Distribution</h5>
+                <div class="card-body">
+                    <img src="data:image/png;base64,{{ graph_data.service_distribution }}" 
+                         alt="Service Distribution"
+                         loading="lazy">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if graph_data.vuln_score_dist %}
+            <div class="graph-card">
+                <h5 class="card-header">Vulnerability Score Distribution</h5>
+                <div class="card-body">
+                    <img src="data:image/png;base64,{{ graph_data.vuln_score_dist }}" 
+                         alt="Vulnerability Score Distribution"
+                         loading="lazy">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if graph_data.port_heatmap %}
+            <div class="graph-card full-width">
+                <h5 class="card-header">Port Distribution Heatmap</h5>
+                <div class="card-body">
+                    <img src="data:image/png;base64,{{ graph_data.port_heatmap }}" 
+                         alt="Port Distribution Heatmap"
+                         loading="lazy">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if graph_data.vuln_dist_heatmap %}
+            <div class="graph-card full-width">
+                <h5 class="card-header">Vulnerability Distribution by Port</h5>
+                <div class="card-body">
+                    <img src="data:image/png;base64,{{ graph_data.vuln_dist_heatmap }}" 
+                         alt="Vulnerability Distribution by Port"
+                         loading="lazy">
                 </div>
             </div>
             {% endif %}
@@ -73,8 +120,7 @@
 
         {% if csv_filename %}
         <div class="text-center download-btn">
-            <a href="{{ url_for('download_file', filename=csv_filename) }}" class="btn btn-success">Download Results as
-                CSV</a>
+            <a href="{{ url_for('download_file', filename=csv_filename) }}" class="btn btn-success">Download Results as CSV</a>
         </div>
         {% endif %}
 
@@ -191,7 +237,6 @@
             <p class="mt-2">Scan in progress... This page will automatically refresh.</p>
         </div>
         <script>
-            // Start timer
             let startTime = new Date().getTime();
             let timerInterval = setInterval(updateTimer, 1000);
 
@@ -201,12 +246,10 @@
                 document.getElementById('scanTimer').textContent = elapsedSeconds + 's';
             }
 
-            // Calculate progress
             function updateProgress() {
                 let totalHosts = {{ summary.total_hosts_scanned }};
                 let scannedHosts = {{ results|length }};
 
-                // Prevent division by zero
                 if (totalHosts > 0) {
                     let percentage = Math.min(Math.round((scannedHosts / totalHosts) * 100), 100);
                     let progressBar = document.getElementById('progressBar');
